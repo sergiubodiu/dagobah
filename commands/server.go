@@ -6,14 +6,17 @@ package commands
 
 import (
 	"fmt"
+	"html"
 	"html/template"
 	"log"
 	"net/http"
+	"strings"
 
-    "github.com/GeertJohan/go.rice"
+	"github.com/GeertJohan/go.rice"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/gin-gonic/gin"
+	"gopkg.in/mgo.v2/bson"
 )
 
 var serverCmd = &cobra.Command{
@@ -39,6 +42,9 @@ func serverRun(cmd *cobra.Command, args []string) {
 
 	r.GET("/", homeRoute)
 	r.GET("/static/*filepath", staticServe)
+	r.GET("channel/*key", channelRoute)
+	r.GET("post/*key", postRoute)
+	//r.GET("search/*query", searchRoute)
 
 	port := viper.GetString("port")
 	fmt.Println("Running on port:", port)
@@ -46,7 +52,73 @@ func serverRun(cmd *cobra.Command, args []string) {
 }
 
 func homeRoute(c *gin.Context) {
-	obj := gin.H{"title": "Go Rules"}
+	var posts []Itm
+	results := Items().Find(bson.M{}).Sort("-date").Limit(20)
+	results.All(&posts)
+
+	obj := gin.H{"title": "Go Rules", "posts": posts, "channels": AllChannels()}
+	c.HTML(200, "full.html", obj)
+}
+
+func channelRoute(c *gin.Context) {
+	key := c.Params.ByName("key")
+	if len(key) < 2 {
+		four04(c, "Channel Not Found")
+		return
+	}
+	key = key[1:]
+
+	fmt.Println(key)
+
+	var posts []Itm
+	results := Items().Find(bson.M{"channelkey": key}).Sort("-date").Limit(20)
+	results.All(&posts)
+
+	if len(posts) == 0 {
+		four04(c, "No Articles")
+		return
+	}
+
+	var currentChannel Chnl
+	err := Channels().Find(bson.M{"key": key}).One(&currentChannel)
+	if err != nil {
+		if string(err.Error()) == "not found" {
+			four04(c, "Channel not found")
+			return
+		} else {
+			fmt.Println(err)
+		}
+	}
+	obj := gin.H{"title": currentChannel.Title, "header": currentChannel.Title,
+		"posts": posts, "channels": AllChannels()}
+	c.HTML(200, "full.html", obj)
+}
+
+func postRoute(c *gin.Context) {
+	key := c.Params.ByName("key")
+
+	if len(key) < 2 {
+		four04(c, "Invalid Post")
+		return
+	}
+
+	key = key[1:]
+
+	var ps []Itm
+	r := Items().Find(bson.M{"key": key}).Sort("-date").Limit(1)
+	r.All(&ps)
+
+	if len(ps) == 0 {
+		four04(c, "Post not found")
+		return
+	}
+
+	var posts []Itm
+	results := Items().Find(bson.M{"date": bson.M{"$lte": ps[0].Date}}).Sort("-date").Limit(20)
+	results.All(&posts)
+
+	obj := gin.H{"title": ps[0].Title, "posts": posts, "channels": AllChannels()}
+
 	c.HTML(200, "full.html", obj)
 }
 
@@ -82,6 +154,18 @@ func loadTemplates(list ...string) *template.Template {
 			log.Fatal(err)
 		}
 	}
+	funcMap := template.FuncMap{
+		"html": ProperHtml,
+		"title": func(a string) string {return strings.Title(a)},
+	}
+	templates.Funcs(funcMap)
 
 	return templates
+}
+
+func ProperHtml(text string) template.HTML {
+	if strings.Contains(text, "content:encoded>") || strings.Contains(text, "content/:encoded>") {
+		text = html.UnescapeString(text)
+	}
+	return template.HTML(html.UnescapeString(template.HTMLEscapeString(text)))
 }

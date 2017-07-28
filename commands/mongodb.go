@@ -11,6 +11,7 @@ import (
 
 	"github.com/spf13/viper"
 	"gopkg.in/mgo.v2"
+	"gopkg.in/mgo.v2/bson"
 )
 
 var mongodbSession *mgo.Session
@@ -69,4 +70,11 @@ func CreateUniqueIndexes() {
 	if err := Channels().EnsureIndex(idx); err != nil {
 		fmt.Println(err)
 	}
+}
+
+func AllChannels() []Chnl {
+	var channels []Chnl
+	r := Channels().Find(bson.M{}).Sort("-lastbuilddate")
+	r.All(&channels)
+	return channels
 }

@@ -14,6 +14,9 @@ import (
 	rss "github.com/jteeuwen/go-pkg-rss"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
+	"net/url"
+	"log"
+	"github.com/gin-gonic/gin"
 )
 
 type Config struct {
@@ -210,4 +213,33 @@ func chnlify(o *rss.Channel) Chnl {
 	x.ItemKeys = keys
 
 	return x
+}
+
+func (i Itm) FirstLink() (link rss.Link) {
+	if len(i.Links) == 0 || i.Links[0] == nil {
+		return
+	}
+	return *i.Links[0]
+}
+
+func (i Itm) WorthShowing() bool {
+	if len(i.FullContent) > 100 {
+		return true
+	}
+	return false
+}
+
+func (c Chnl) HomePage() string {
+	if len(c.Links) == 0 {
+		return ""
+	}
+	url, err := url.Parse(c.Links[0].Href)
+	if err != nil {
+		log.Println(err)
+	}
+	return url.Scheme + "://" + url.Host
+}
+
+func four04(context *gin.Context, message string) {
+	context.HTML(404, "full.html", gin.H{"message": message, "title": message})
 }

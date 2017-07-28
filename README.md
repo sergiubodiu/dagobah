@@ -42,3 +42,10 @@ Step 4: Building a dynamic server
 
 ### Get your static & templates on
     c.spf13.com/OSCON/step6-static.zip
+
+Step 5: Connecting the data to the templates
+--------------------------------------------
+
+### Displaying Channels
+### Displaying Posts
+### Implementing Search (TBD)
