@@ -6,7 +6,11 @@ package commands
 
 import (
 	"fmt"
+	"html/template"
+	"log"
+	"net/http"
 
+    "github.com/GeertJohan/go.rice"
 	"github.com/spf13/cobra"
 	"github.com/spf13/viper"
 	"github.com/gin-gonic/gin"
@@ -26,12 +30,58 @@ func init()  {
 
 func serverRun(cmd *cobra.Command, args []string) {
 	r := gin.Default()
+	templates := loadTemplates("full.html")
+	r.SetHTMLTemplate(templates)
 
 	r.GET("/ping", func(context *gin.Context) {
 		context.String(200, "pong")
 	})
 
+	r.GET("/", homeRoute)
+	r.GET("/static/*filepath", staticServe)
+
 	port := viper.GetString("port")
 	fmt.Println("Running on port:", port)
 	r.Run(":" + port)
+}
+
+func homeRoute(c *gin.Context) {
+	obj := gin.H{"title": "Go Rules"}
+	c.HTML(200, "full.html", obj)
+}
+
+func staticServe(c *gin.Context) {
+	static, err := rice.FindBox("static")
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	original := c.Request.URL.Path
+	c.Request.URL.Path = c.Params.ByName("filepath")
+	fmt.Println(c.Params.ByName("filepath"))
+	http.FileServer(static.HTTPBox()).ServeHTTP(c.Writer, c.Request)
+	c.Request.URL.Path = original
+}
+
+func loadTemplates(list ...string) *template.Template {
+	templateBox, err := rice.FindBox("templates")
+	if err != nil {
+		log.Fatal(err)
+	}
+	templates := template.New("")
+
+	for _, x := range list {
+		templateString, err := templateBox.String(x)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		// get file contents as string
+		_, err = templates.New(x).Parse(templateString)
+		if err != nil {
+			log.Fatal(err)
+		}
+	}
+
+	return templates
 }

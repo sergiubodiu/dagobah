@@ -23,12 +23,22 @@ https://docs.mongodb.com/manual/tutorial/install-mongodb-on-windows/
    db.items.findOne()
 
 Step 3: Building a web server
+-----------------------------
 
 ### Getting Gin
-go get -u github.com/gin-gonic/gin
+    go get -u github.com/gin-gonic/gin
 
 ### Running it
-go run main.go server
+    go run main.go server
 
 ### Check it out
-http://localhost:1138
+    http://localhost:1138
+
+Step 4: Building a dynamic server
+---------------------------------
+
+### Getting Go.Rice
+    go get -u github.com/GeertJohan/go.rice
+
+### Get your static & templates on
+    c.spf13.com/OSCON/step6-static.zip
